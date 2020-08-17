@@ -8,7 +8,8 @@ num_classes: 10
 auxiliary_weight: 0.4
 drop_path_prob: 0.3
 arch: PCDARTS
-sub_name: 'pcdarts_cifar10'
+# sub_name: 'pcdarts_cifar10' # Change this back for full training
+sub_name: 'pcdarts_cifar10_search'
 using_normalize: True
 
 # training dataset
