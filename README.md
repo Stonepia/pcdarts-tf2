@@ -1,21 +1,46 @@
-# [pcdarts-tf2](https://github.com/peteryuX/pcdarts-tf2)
+# [pcdarts-tf2](https://github.com/Stonepia/pcdarts-tf2)
 
-[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/peteryuX/pcdarts-tf2.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/peteryuX/pcdarts-tf2/context:python)
+<!-- [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/peteryuX/pcdarts-tf2.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/peteryuX/pcdarts-tf2/context:python)
 ![Star](https://img.shields.io/github/stars/peteryuX/pcdarts-tf2)
 ![Fork](https://img.shields.io/github/forks/peteryuX/pcdarts-tf2)
-![License](https://img.shields.io/github/license/peteryuX/pcdarts-tf2)
+![License](https://img.shields.io/github/license/peteryuX/pcdarts-tf2) -->
 
-:fire: PC-DARTS (PC-DARTS: Partial Channel Connections for Memory-Efficient Differentiable Architecture Search, published in ICLR 2020) implemented in Tensorflow 2.0+. This is an unofficial implementation. :fire:
+
+This repo is forked from [PCDARTS-TF2](https://github.com/peteryuX/pcdarts-tf2) and trying to combine the techniques of [PC-DARTS](https://arxiv.org/abs/1907.05737) with [RobNets](https://arxiv.org/abs/1911.10695).
+
+
 
 > PC-DARTS is a memory efficient differentiable architecture search method, which can be trained with a larger batch size and, consequently, enjoys both faster speed and higher training stability. Experimental results achieve an error rate of **2.57%** on CIFAR10 with merely **0.1 GPU-days** for architecture search.
 
-Original Paper: &nbsp; [Arxiv](https://arxiv.org/abs/1907.05737) &nbsp; [OpenReview](https://openreview.net/forum?id=BJlS634tPr)
+PC-DARTS is quick, this makes using adversarial training in Neural Architecture Search possible. This work, tries to add adversarial training as suggested in RobNets to generate more robust networks. 
 
-Offical Implementation: &nbsp; [PyTorch](https://github.com/yuhuixu1993/PC-DARTS)
+Secondly, since using the same cell architecture for the whole network may not be the optimal solution, RobNets suggests that cells with Low FSP Loss may be more robust and may carry more information. This makes sampling from the supernet and generate various network accessable within limited computation budget. In later work, this will implement the various cell search method and compare the results.
+
+Randomly sampled network are often used as a baseline for performance of the searched network. This part has also been implemented in the repo for future use.
+
+
+Original Paper: 
+- PC-DARTS &nbsp; [Arxiv]() &nbsp; [OpenReview](https://openreview.net/forum?id=BJlS634tPr)
+- RobNets  &nbsp; [Arxiv]() &nbsp; 
+
+Offical Implementation: 
+- PC-DARTS &nbsp; [PyTorch](https://github.com/yuhuixu1993/PC-DARTS)
+- RobNets &nbsp; [PyTorch](https://github.com/gmh14/RobNets)
 
 <p align="center">
     <img src="photo/architecture.jpg" width="75%">
+    <img src="photo/fsp_calculation.jpg" width=75%>
 </p>
+
+# Roadmap
+- [x] Random generate network as a baseline
+- [x] Introduce Adversarial Search Method into PC-DARTS
+- [-] Calculate FSP Matrix for cells (working on)
+- [ ] Select best cells according to FSP Loss
+- [ ] Generate network by searched different cells
+- [ ] Verify on Large Datasets
+
+
 
 ****
 
@@ -40,6 +65,7 @@ Create a new python virtual environment by [Anaconda](https://www.anaconda.com/)
 git clone https://github.com/peteryuX/pcdarts-tf2.git
 cd pcdarts-tf2
 ```
+Note that the master branch may not contain the current developed method, you may also check other branches.
 
 ### Conda
 ```bash
@@ -57,6 +83,13 @@ pip install -r requirements.txt
 
 ## Usage
 :lollipop:
+
+### Debugging
+Set the `Debug` to `True` in files. Install `debugpy` and open a port if needed.
+
+```bash
+python -m debugpy --port 5678 train_search.py --cfg_path="./configs/pcdarts_cifar10_search.yaml" --gpu=0
+```
 
 ### Config File
 You can modify your own dataset path or other settings of model in [./configs/*.yaml](https://github.com/peteryuX/pcdarts-tf2/tree/master/configs) for training and testing, which would like below.
@@ -166,28 +199,51 @@ To evaluate the full-sized model with the corresponding cfg file on the testing 
 python test.py --cfg_path="./configs/pcdarts_cifar10.yaml" --gpu=0
 ```
 
+
+### Training Random Networks
+**Step1** : Generate random nets
+
+```bash
+python random_search.py [--cfg_path="./configs/pcdarts_cifar10.yaml" --gpu=0]
+```
+The searched architecture is stored in [./logs/*/search_random_arch_genotype.py], you may need to manually copy the arch into [./modules/search_random_arch_genotype.py] for training and testing. Or copy to [./modules/genotypes.py] for visualization.
+
+
+To visualize the Searched architecture, use 
+```bash
+python visualize_genotype.py GENO_NAME
+```
+
+
+**Step2** : Training for Random Nets
+```bash
+python random_train.py [--cfg_path="./configs/pcdarts_cifar10.yaml" --gpu=0]
+```
+
+**Step3** : Testing for Random Nets
+```bash
+python random_testing.py [--cfg_path="./configs/pcdarts_cifar10.yaml" --gpu=0]
+```
+
+
+
+
+
 ****
 
 ## Benchmark
-:coffee:
 
 ### Results on CIFAR-10
-| Method | Search Method | Params(M) | Test Error(%)| Search-Cost(GPU-days) |
-| ------ | ------------- | --------- | ------------ | --------------------- |
-| [NASNet-A](https://arxiv.org/abs/1611.01578) | RL | 3.3 | 2.65 | 1800 |
-| [AmoebaNet-B](https://arxiv.org/abs/1802.01548) | Evolution | 2.8 | 2.55 | 3150 |
-| [ENAS](https://arxiv.org/abs/1802.03268) | RL | 4.6 | 2.89 | 0.5 |
-| [DARTSV1](https://arxiv.org/abs/1806.09055) | gradient-based | 3.3 | 3.00 | 0.4 |
-| [DARTSV2](https://arxiv.org/abs/1806.09055) | gradient-based | 3.3 | 2.76 | 1.0 |
-| [SNAS](https://arxiv.org/abs/1812.09926)    | gradient-based | 2.8 | 2.85 | 1.5 |
-| [PC-DARTS](https://github.com/yuhuixu1993/PC-DARTS) (official PyTorch version) | gradient-based | 3.63 | **2.57** | **0.1** |
-| PC-DARTS TF2 (paper architecture) | gradient-based | 3.63 | 2.73 | - |
-| PC-DARTS TF2 (searched by myself) | gradient-based | 3.56 | 2.88 | 0.12 |
+| Method | Search Method | Params(M) | Accuracy(%)| Search-Cost(GPU-days) | Searched Epoches |
+| ------ | ------------- | --------- | ------------ | --------------------- | ---------------|
+| [PC-DARTS](https://github.com/yuhuixu1993/PC-DARTS) (Reported from paper) | gradient-based | 3.63 | **96.37** | **0.1** | 200 |
+| PC-DARTS TF2 Random | - | 3.15 | 85.81 | - | 15 |
+| PC-DARTS TF2 Random (with Attack) (small model) | gradient-based | 0.3 | 77.32 | - | 15|
+| PC-DARTS TF2 (Natural) (big model) | gradient-based | 3.63 | 90.04 | 0.12 | 50| 
 
 Note:
 - Above results are referenced from [official repository](https://github.com/yuhuixu1993/PC-DARTS) and [orignal paper](https://arxiv.org/abs/1907.05737).
-- There still have a slight performance gap between my PC-DARTS TF2 and official version. In both cases, we used Nvidia 1080ti (11G memory). My PC-DARTS TF2 pre-trained model can be found in [Models](#Models).
-- My tensorboard logs can be found from [search_log](https://tensorboard.dev/experiment/SWu96NYrSlyIk7VRmCqjgw/) and [full_train_log](https://tensorboard.dev/experiment/lyI64MKgRAODUqv3V4rzjg/).
+- The performance gap between my model and the paper is due to the lack of training resources. If trained on more epochs, it will gets a better results. 
 - If you get unsatisfactory results with the archecture searched by yourself, you might try to search it more than one time. (see the discussions [here](https://github.com/yuhuixu1993/PC-DARTS/issues/7))
 
 ****
@@ -195,16 +251,7 @@ Note:
 ## Models
 :doughnut:
 
-Dowload these models bellow, then extract them into `./checkpoints/` for restoring.
-
-| Model Name          | Config File | `arch` | Download Link |
-|---------------------|-------------|--------|---------------|
-| PC-DARTS (CIFAR-10, paper architecture) | [pcdarts_cifar10.yaml](https://github.com/peteryuX/pcdarts-tf2/tree/master//configs/pcdarts_cifar10.yaml) | `PCDARTS` | [GoogleDrive](https://drive.google.com/file/d/1BhLlktX78z90yOaORXvch_GAnIWWkYrX/view?usp=sharing) |
-| PC-DARTS (CIFAR-10, searched by myself) | [pcdarts_cifar10_TF2.yaml](https://github.com/peteryuX/pcdarts-tf2/tree/master//configs/pcdarts_cifar10_TF2.yaml) | `PCDARTS_TF2_SEARCH` | [GoogleDrive](https://drive.google.com/file/d/1UgeZzEnQZ6oeMKpr01rEDflVi9X1dzeq/view?usp=sharing) |
-
-Note:
-- You can find the training settings of the models in the corresponding [./configs/*.yaml](https://github.com/peteryuX/pcdarts-tf2/tree/master/configs) files, and make sure that the `arch` flag in it is matched with the genotypes name in [./modules/genotypes.py](https://github.com/peteryuX/pcdarts-tf2/tree/master/modules/genotypes.py).
-- **Based on the property of the training dataset, all the pre-trained models can only be used for non-commercial applications.**
+Waiting for larger training resources.
 
 ****
 
@@ -212,7 +259,8 @@ Note:
 :hamburger:
 
 Thanks for these source codes porviding me with knowledges to complete this repository.
-
+- https://github.com/peteryuX/pcdarts-tf2 (TF2-Version)
+    - PC-DARTS TF2 : The tensorflow version of PC-DARTS.
 - https://github.com/yuhuixu1993/PC-DARTS (Official)
     - PC-DARTS:Partial Channel Connections for Memory-Efficient Differentiable Architecture Search
 - https://github.com/quark0/darts

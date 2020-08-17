@@ -9,7 +9,7 @@ from tensorflow.keras.layers import (Input, Dense, Flatten, Conv2D, MaxPool2D,
 from modules.operations import (OPS, FactorizedReduce, ReLUConvBN,
                                 BatchNormalization, kernel_init, regularizer)
 from modules.genotypes import PRIMITIVES, Genotype
-
+import neural_structured_learning as nsl
 
 def channel_shuffle(x, groups):
     _, h, w, num_channels = x.shape
@@ -201,9 +201,25 @@ class SearchNetArch(object):
         logits = Dense(num_cls, kernel_initializer=kernel_init(),
                        kernel_regularizer=regularizer(wd))(Flatten()(fea))
 
-        return Model(
-            (inputs, alphas_normal, alphas_reduce, betas_normal, betas_reduce),
-            logits, name=self.name)
+        base_model = Model(
+            inputs=(inputs, alphas_normal, alphas_reduce, betas_normal, betas_reduce),
+            outputs=logits, name=self.name)
+
+        adv_model = base_model
+            # Add adversarial training steps here
+        if self.cfg['adv_flags']==True:
+            adv_cfg = nsl.configs.make_adv_reg_config(
+                multiplier=self.cfg['adv_multiplier'],
+                adv_step_size= self.cfg['adv_step_size'],
+                adv_grad_norm= self.cfg['adv_grad_norm']
+            )
+            adv_model = nsl.keras.AdversarialRegularization(
+                base_model,
+                # label_keys=['label'],
+                adv_config=adv_cfg
+            )
+            
+        return base_model
 
     def get_genotype(self, random_search_flag=False):
         """get genotype"""

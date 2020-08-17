@@ -11,12 +11,13 @@ from modules.utils import (
     set_memory_growth, load_yaml, count_parameters_in_MB, ProgressBar,
     AvgrageMeter, accuracy)
 
+import neural_structured_learning as nsl
 
 flags.DEFINE_string('cfg_path', './configs/pcdarts_cifar10_search.yaml',
                     'config file path')
 flags.DEFINE_string('gpu', '0', 'which gpu to use')
 
-
+Debug = False
 def main(_):
     # init
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -28,10 +29,18 @@ def main(_):
     set_memory_growth()
 
     cfg = load_yaml(FLAGS.cfg_path)
-
+    # if Debug:
+    #     import debugpy
+    #     print("now connect to debug port 5678")
+    #     debugpy.wait_for_client()
     # define network
     sna = SearchNetArch(cfg)
-    sna.model.summary(line_length=80)
+
+  
+
+
+
+    # sna.model.summary(line_length=80)
     print("param size = {:f}MB".format(count_parameters_in_MB(sna.model)))
 
     # load dataset
@@ -85,17 +94,37 @@ def main(_):
 
     # define training step function for model
     @tf.function
-    def train_step(inputs, labels):
+    def train_step(inputs, labels,adv_steps=1):
         with tf.GradientTape() as tape:
             logits = sna.model((inputs, *sna.arch_parameters), training=True)
-
+            
+            if Debug:
+                print("[*] start train_step")
             losses = {}
             losses['reg'] = tf.reduce_sum(sna.model.losses)
             losses['ce'] = criterion(labels, logits)
             total_loss = tf.add_n([l for l in losses.values()])
 
         grads = tape.gradient(total_loss, sna.model.trainable_variables)
-        grads = [(tf.clip_by_norm(grad, cfg['grad_clip'])) for grad in grads]
+
+        # Used to generate adversarial attack
+        if cfg['adv_flags']==True and adv_steps%7==0:
+            if Debug:
+                print("[*] start adversarial training")
+            signed_grad = tf.sign(grads)
+            perturbated_input = inputs +  signed_grad * cfg['adv_multiplier']
+
+            with tf.GradientTape() as tape:
+                adv_logits = sna.model((perturbated_input, *sna.arch_parameters),training=True)
+
+                adv_losses = {}
+                losses['reg'] = tf.reduce_sum(sna.model.losses)
+                losses['ce'] = criterion(labels, adv_logits)
+                total_adv_loss = tf.add_n([l for l in adv_losses.values()])
+
+            adv_grades = tape.gradient(total_adv_loss, sna.model.trainable_variables)
+
+            grads = [(tf.clip_by_norm(grad, cfg['grad_clip'])) for grad in adv_grades]
         optimizer.apply_gradients(zip(grads, sna.model.trainable_variables))
 
         return logits, total_loss, losses
@@ -131,10 +160,12 @@ def main(_):
         epochs = ((steps - 1) // steps_per_epoch) + 1
 
         if epochs > cfg['start_search_epoch']:
+            if Debug:
+                print("train_step_arch")
             inputs_val, labels_val = next(iter(val_dataset))
             arch_losses = train_step_arch(inputs_val, labels_val)
 
-        logits, total_loss, losses = train_step(inputs, labels)
+        logits, total_loss, losses = train_step(inputs, labels,adv_steps=steps)
         train_acc.update(
             accuracy(logits.numpy(), labels.numpy())[0], cfg['batch_size'])
 
