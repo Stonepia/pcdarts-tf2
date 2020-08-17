@@ -218,15 +218,7 @@ class SearchNetArch(object):
                 # label_keys=['label'],
                 adv_config=adv_cfg
             )
-        
-
-
-
-        print("connect here at port 5678 in SearchNetArch")
-        import debugpy
-        debugpy.wait_for_client()
-        debugpy.breakpoint()
-   
+            
         return base_model
 
     def get_genotype(self, random_search_flag=False):

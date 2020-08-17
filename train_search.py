@@ -17,7 +17,7 @@ flags.DEFINE_string('cfg_path', './configs/pcdarts_cifar10_search.yaml',
                     'config file path')
 flags.DEFINE_string('gpu', '0', 'which gpu to use')
 
-Debug = True
+Debug = False
 def main(_):
     # init
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -94,12 +94,12 @@ def main(_):
 
     # define training step function for model
     @tf.function
-    def train_step(inputs, labels):
+    def train_step(inputs, labels,adv_steps=1):
         with tf.GradientTape() as tape:
             logits = sna.model((inputs, *sna.arch_parameters), training=True)
             
             if Debug:
-                print("start train_step")
+                print("[*] start train_step")
             losses = {}
             losses['reg'] = tf.reduce_sum(sna.model.losses)
             losses['ce'] = criterion(labels, logits)
@@ -108,7 +108,9 @@ def main(_):
         grads = tape.gradient(total_loss, sna.model.trainable_variables)
 
         # Used to generate adversarial attack
-        if cfg['adv_flags']==True:
+        if cfg['adv_flags']==True and adv_steps%7==0:
+            if Debug:
+                print("[*] start adversarial training")
             signed_grad = tf.sign(grads)
             perturbated_input = inputs +  signed_grad * cfg['adv_multiplier']
 
@@ -163,7 +165,7 @@ def main(_):
             inputs_val, labels_val = next(iter(val_dataset))
             arch_losses = train_step_arch(inputs_val, labels_val)
 
-        logits, total_loss, losses = train_step(inputs, labels)
+        logits, total_loss, losses = train_step(inputs, labels,adv_steps=steps)
         train_acc.update(
             accuracy(logits.numpy(), labels.numpy())[0], cfg['batch_size'])
 
