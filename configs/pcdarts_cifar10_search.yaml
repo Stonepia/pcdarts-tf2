@@ -28,3 +28,9 @@ arch_learning_rate: !!float 6e-4
 arch_weight_decay: !!float 1e-3
 
 save_steps: 97
+
+# Settings for adversarial training
+adv_flags : True
+adv_multiplier : 0.1
+adv_step_size : 0.2
+adv_grad_norm : 'infinity'

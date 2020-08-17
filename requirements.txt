@@ -5,3 +5,4 @@ opencv-python
 PyYAML
 ipython
 graphviz
+neural-structured-learning
